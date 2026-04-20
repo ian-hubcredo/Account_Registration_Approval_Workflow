@@ -1,0 +1,281 @@
+{
+  "name": "Account setup request",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "9ce6e766-1159-489f-b634-a0b93dbbdac1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        80,
+        144
+      ],
+      "id": "00392e8f-78bd-4700-9b36-b3acc512e1ff",
+      "name": "Webhook",
+      "webhookId": "<REDACTED_WEBHOOK_ID>"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "<REDACTED_EMAIL>",
+        "subject": "New Account Request",
+        "message": "=A new account request has been received. Email: {{ $('Webhook').item.json.body.email }}. Please approve or decline this request.",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 48
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        304,
+        144
+      ],
+      "id": "0d412622-59e4-4f27-ad99-9b8f7bdcaee8",
+      "name": "Send message and wait for response",
+      "webhookId": "<REDACTED_WEBHOOK_ID>",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "<REDACTED_CREDENTIAL_ID>", "name": "<REDACTED_CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "25799870-ace7-47b4-8ad4-ee0a6b603762",
+      "name": "Check Approval Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require(\"crypto\");\n\n// Define character sets\nconst upper = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\";\nconst lower = \"abcdefghijklmnopqrstuvwxyz\";\nconst numbers = \"0123456789\";\nconst symbols = \"!@#$%^&*()_+=-[]{}|;:,.<>?/`~\";\n\n// Combine all sets\nconst allChars = upper + lower + numbers + symbols;\n\n// Helper: get secure random index\nconst randomIndex = (length) => crypto.randomInt(0, length);\n\n// Generate a strong password\nlet password = \"\";\n\n// Ensure at least one from each category for guaranteed complexity\npassword += upper[randomIndex(upper.length)];\npassword += lower[randomIndex(lower.length)];\npassword += numbers[randomIndex(numbers.length)];\npassword += symbols[randomIndex(symbols.length)];\n\n// Fill the rest (12 total, or more if you like)\nfor (let i = password.length; i < 16; i++) {\n  password += allChars[randomIndex(allChars.length)];\n}\n\n// Optional: Shuffle to remove predictable placement\npassword = password.split('').sort(() => 0.5 - Math.random()).join('');\n\nreturn [{ json: { password }, pairedItem: 0 }];\n"
+      },
+      "id": "176f2b05-1da9-4925-a5b3-522e746a11c8",
+      "name": "Generate Password",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "account_requests",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').item.json.body.email }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "password",
+              "fieldValue": "={{ $json.password }}"
+            },
+            {
+              "fieldId": "approved_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "efeac0a7-4d35-4819-a37b-43ec8bf8171c",
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        976,
+        144
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "<REDACTED_CREDENTIAL_ID>", "name": "<REDACTED_CREDENTIAL_NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "Hello ! Here is your password to login in ClearAI vision",
+        "message": "=Email : {{ $('Webhook').item.json.body.email }}\nPassword : {{ $('Generate Password').item.json.password }}\n\nI hope you love and get your work done soon",
+        "options": {
+          "ccList": "<REDACTED_EMAIL>"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1184,
+        144
+      ],
+      "id": "1b4322e7-e36a-4a9e-badd-4ba61d3a363e",
+      "name": "Send a message",
+      "webhookId": "<REDACTED_WEBHOOK_ID>",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "<REDACTED_CREDENTIAL_ID>", "name": "<REDACTED_CREDENTIAL_NAME>"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "Check Approval Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Approval Status": {
+      "main": [
+        [
+          {
+            "node": "Generate Password",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Password": {
+      "main": [
+        [
+          {
+            "node": "Save to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "<REDACTED_N8N_HOST>",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/<REDACTED_IP> Safari/537.36",
+            "content-length": "167",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "accept-language": "en-US,en;q=0.9",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "<REDACTED_IP>",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "IN",
+            "cf-ray": "<REDACTED>",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "origin": "https://app-7dzvb2e20qgx.appmedo.com",
+            "priority": "u=1, i",
+            "referer": "https://app-7dzvb2e20qgx.appmedo.com/",
+            "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "<REDACTED_IP>",
+            "x-forwarded-host": "<REDACTED_N8N_HOST>",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "<REDACTED>",
+            "x-is-trusted": "yes",
+            "x-real-ip": "<REDACTED_IP>"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "full_name": "<REDACTED_NAME>",
+            "email": "<REDACTED_EMAIL>",
+            "message": "Hey, I want to try out the platform!",
+            "request_id": "<REDACTED_REQUEST_ID>"
+          },
+          "webhookUrl": "https://<REDACTED_N8N_HOST>/webhook/<REDACTED_WEBHOOK_ID>",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
